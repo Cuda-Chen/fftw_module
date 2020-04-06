@@ -106,6 +106,41 @@ fftToFile (double *data, uint64_t dataSamples, double sampleRate, FILE *fptr)
 void
 ampNPhaseToFile (double *data, uint64_t dataSamples, double sampleRate, FILE *fptr)
 {
+  fftw_plan fft;
+  uint64_t i;
+  double min = 0.0, max = sampleRate;
+  uint64_t mid = (dataSamples % 2 == 0) ? (dataSamples / 2) : (dataSamples / 2 + 1);
+  /* allocate memory */
+  fftw_complex *in  = (fftw_complex *)fftw_malloc (sizeof (fftw_complex) * dataSamples);
+  fftw_complex *out = (fftw_complex *)fftw_malloc (sizeof (fftw_complex) * dataSamples);
+  double *freq      = (double *)malloc (sizeof (double) * dataSamples);
+
+  /* prepare input data */
+  for (i = 0; i < dataSamples; i++)
+  {
+    in[i][0] = data[i];
+    in[i][1] = 0;
+  }
+
+  /* prepare frequency index and data */
+  range (freq, min, max, dataSamples);
+
+  /* Fourier transform and save result to `out` */
+  fft = fftw_plan_dft_1d (dataSamples, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
+  fftw_execute (fft);
+  fftw_destroy_plan (fft);
+  /* output amplitude and phase to file */
+  for (i = 0; i < mid; i++)
+  {
+    fprintf (fptr, "%lf %lf %lf\n", freq[i],
+             sqrt (pow (out[i][0], 2) + pow (out[i][1], 2)),
+             atan2 (out[i][1], out[i][2]));
+  }
+
+  /* free allocated memory */
+  fftw_free (in);
+  fftw_free (out);
+  free (freq);
 }
 
 /* Usage: Unit test function of FFT utility.
